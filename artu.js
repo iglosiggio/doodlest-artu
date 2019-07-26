@@ -81,7 +81,6 @@ function addSegment(x, y) {
 	ctx.moveTo(prev.x, prev.y);
 	ctx.lineTo(x, y);
 	ctx.stroke();
-	ctx.closePath();
 }
 
 function fill() {
@@ -104,7 +103,6 @@ function redraw() {
 			for (point of command.segments.slice(1))
 				ctx.lineTo(point.x, point.y);
 			ctx.stroke();
-			ctx.closePath();
 			break;
 		}
 	}
