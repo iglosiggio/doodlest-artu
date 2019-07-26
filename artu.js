@@ -1,178 +1,138 @@
-var lastMouseX = undefined;
-var lastMouseY = undefined;
-var wasReleased = true;
-var defaultBackgroundColor = "#ffcd75";
-var lineColor = "#1a1c2c";
-var strokeSize = 10;
-var steps = [];
-var minDrawDistance = 5;
-var pg;
-var scale = 1;
-var mouseWasPressedInside = false;
-var isMobile = false;
-var tiempoInicio = new Date();
-var timeoutMax = 60*10;
-var segundosrestantes;
-var puedeSubmitear = true;
+/* TODO: Eliminar puntos demasiado cercanos o repetidos */
+/* TODO: Implementar saveToServer() */
+let canvas;
+let ctx;
+let isDrawing;
+let commands = [];
 
-function setup() {
-    var divW = document.getElementById("canvas").offsetWidth;
-    scale = divW / 500;
-    var divH = Math.round(440 * scale);
-    var canvas = createCanvas(divW, divH);
-    canvas.parent('canvas');
-    createPg();
-    mouseX = -10;
-    mouseY = -10;
-    var dc = document.querySelector("#defaultCanvas0");
-    dc.addEventListener("touchmove", function(e){
-        e.preventDefault();
-        return;
-    });
+function startu() {
+	canvas = document.getElementById('artu-canvas');
+	ctx = canvas.getContext('2d');
+
+	/* Default values */
+	ctx.lineCap = 'round';
+	ctx.lineJoin = 'round';
+	ctx.strokeStyle = '#1A1C2C';
+	ctx.lineWidth = 10;
+	ctx.fillStyle = '#FFCD75';
+
+	commands.push({type: 'fill', fillStyle: '#FFCD75'});
+	redraw();
+
+	/* TODO: Mover el código de los controles a un lugar mejor. */
+
+	/* Mouse controls */
+	canvas.addEventListener('mousedown', e => {
+		let rect = canvas.getBoundingClientRect();
+		startLine(e.clientX - rect.left, e.clientY - rect.top);
+	});
+	canvas.addEventListener('mouseup', endLine);
+	document.addEventListener('mousemove', e => {
+		if (isDrawing) {
+			let rect = canvas.getBoundingClientRect();
+			addSegment(e.clientX - rect.left, e.clientY - rect.top);
+		}
+	});
+
+	/* Touch controls */
+	canvas.addEventListener('touchstart', e => {
+		e.preventDefault();
+		let rect = canvas.getBoundingClientRect();
+		/* TODO: ¿Soportar multitouch? */
+		let touch = e.changedTouches[0]
+		startLine(touch.clientX - rect.left, touch.clientY - rect.top);
+	});
+	canvas.addEventListener('touchmove', e => {
+		if (isDrawing) {
+			e.preventDefault();
+			let rect = canvas.getBoundingClientRect();
+			/* TODO: ¿Soportar multitouch? */
+			let touch = e.changedTouches[0]
+			addSegment(touch.clientX - rect.left, touch.clientY - rect.top);
+		}
+	});
+	canvas.addEventListener('touchend', endLine);
+	canvas.addEventListener('touchcancel', endLine);
 }
 
-function draw(){
-    //Draw picture
-    drawCanvas();
+function startLine(x, y) {
+	isDrawing = true;
 
-    // Draw cursor
-    if(!isMobile){
-        strokeWeight(strokeSize * scale);
-        stroke(0, 128);
-        point(mouseX, mouseY);
-    }
+	commands.push({
+		type: 'stroke',
+		strokeStyle: ctx.strokeStyle,
+		lineWidth: ctx.lineWidth,
+		segments: [{x, y}]
+	});
 
-    // Draw
-    if(mouseIsPressed && mouseWasPressedInside && mouseInside()){
-        if(wasReleased){
-            wasReleased = false;
-        }else{
-            pg.stroke(lineColor);
-            pg.strokeWeight(strokeSize * scale);
-            pg.line(lastMouseX, lastMouseY, mouseX, mouseY);
-        }
-    }
-
-    // Store mouse position
-    lastMouseX = mouseX;
-    lastMouseY = mouseY;
+	addSegment(x, y);
 }
 
-function mouseInside(){
-    return (mouseX >= 0 && mouseX < width && mouseY >= 0 && mouseY < height);
+function endLine() {
+	isDrawing = false;
 }
 
-function mousePressed(){
-    if(mouseInside()){
-        saveStep();
-        mouseWasPressedInside = true;
-    }else{
-        mouseWasPressedInside = false;
-    }
+function addSegment(x, y) {
+	const line = commands[commands.length - 1]
+	const prev = line.segments[line.segments.length - 1];
+	line.segments.push({x, y});
+
+	ctx.beginPath();
+	ctx.moveTo(prev.x, prev.y);
+	ctx.lineTo(x, y);
+	ctx.stroke();
+	ctx.closePath();
 }
 
-function mouseReleased(){
-    wasReleased = true;
+function fill() {
+	commands.push({type: 'fill', fillStyle: ctx.fillStyle});
+	ctx.fillRect(0, 0, canvas.width, canvas.height);
 }
 
-function drawCanvas(){
-    image(pg, 0, 0);
+function redraw() {
+	for (command of commands) {
+		switch(command.type) {
+		case 'fill':
+			ctx.fillStyle = command.fillStyle;
+			ctx.fillRect(0, 0, canvas.width, canvas.height);
+			break;
+		case 'stroke':
+			ctx.strokeStyle = command.strokeStyle;
+			ctx.lineWidth = command.lineWidth;
+			ctx.beginPath();
+			ctx.moveTo(command.segments[0].x, command.segments[1].y);
+			for (point of command.segments.slice(1))
+				ctx.lineTo(point.x, point.y);
+			ctx.stroke();
+			ctx.closePath();
+			break;
+		}
+	}
 }
 
-function saveStep(){
-    var step = createGraphics(pg.width, pg.height);
-    step.image(pg, 0, 0);
-    steps.push(step);
+function clearCanvas() {
+	commands = [commands[0]];
+	redraw();
 }
 
-function fillBack(){
-    saveStep();
-    pg.background(lineColor);
+function setColor(color) {
+	ctx.strokeStyle = color;
+	ctx.fillStyle = color;
 }
 
-function clearCanvas(){
-    saveStep();
-    createPg();
-}
-
-function setColor(color){
-    lineColor = color;
-}
-
-function setWidth(i){
-    strokeSize = i;
-}
-
-function createPg(){
-    pg = createGraphics(width, height);
-    pg.background(defaultBackgroundColor);
+function setWidth(i) {
+	ctx.lineWidth = i;
 }
 
 function undo(){
-    if(steps.length > 0)
-        pg = steps.pop();
-    else{
-        createPg();
-    }
+	if(commands.length > 1)
+		commands.pop();
+	redraw();
 }
-
-function touchStarted() {
-    isMobile = true;
-    mousePressed();
-}
-
-window.onbeforeunload = function() {
-    return "Do you really want to leave? You may lose unsaved changes!";
-};
-
-function saveToServer(){
-    if (segundosrestantes > timeoutMax - (60 * 1.5)){
-        alert("Hey! You drew a little too fast! Try to spend a little more time on your drawing!");
-        return;
-    }
-
-    if(!puedeSubmitear) return;
-    puedeSubmitear = false;
-
-    window.onbeforeunload = null;
-
-    //las imagenes se tienen que guardar en 300x264
-    //Creo un canvas nuevo para resizear el output
-    var originalCanvas = document.getElementById("defaultCanvas0");
-    // Create canvas for resizing
-    var resizeCanvas = document.createElement("canvas");
-    resizeCanvas.height = 264;
-    resizeCanvas.width = 300;
-    var resizeCtx = resizeCanvas.getContext('2d');
-    // Put original canvas contents to the resizing canvas
-    resizeCtx.drawImage(originalCanvas, 0, 0, 300, 264);
-
-    //Guardo el output
-    var dataURL = resizeCanvas.toDataURL();
-    var imagefield = document.getElementById('image');
-    // TODO agregar coso
-    imagefield.value = dataURL;
-    document.getElementById("imageform").submit(); 
-}
-
-var cuentaabajo = setInterval(function(){
-    var timeNow = new Date();
-    segundosrestantes = timeoutMax - ((timeNow - tiempoInicio) / 1000);
-    var timeLeftText = document.getElementById('timeleft');
-    if(segundosrestantes < timeoutMax / 2) $("#timeleft").addClass('text-warning').removeClass('text-muted');
-    if(segundosrestantes < 60) $("#timeleft").addClass('text-danger').removeClass('text-warning');
-    var minutes = Math.floor(segundosrestantes / 60);
-    var seconds = Math.floor(segundosrestantes % 60);
-    var tiempo = minutes + ":" + (seconds < 10 ? "0" + seconds : seconds);
-    if(segundosrestantes >= 0){
-        timeLeftText.innerHTML = "Time left: " + tiempo;
-        document.title= "(" + tiempo + ") Draw! - Doodlest";
-    }
-    if(segundosrestantes <= 0) saveToServer();
-}, 1000);
 
 document.addEventListener('keydown', function(event) {
-  if (event.ctrlKey && event.key === 'z') {
-    undo();
-  }
+	if (event.ctrlKey && event.key === 'z')
+		undo();
 });
+
+document.addEventListener('DOMContentLoaded', startu);
