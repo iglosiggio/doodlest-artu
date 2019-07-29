@@ -16,7 +16,7 @@ function startu() {
 	ctx.lineWidth = 10;
 	ctx.fillStyle = '#FFCD75';
 
-	commands.push({type: 'fill', fillStyle: '#FFCD75'});
+	commands.push({type: 'fill'});
 	redraw();
 
 	/* TODO: Mover el código de los controles a un lugar mejor. */
@@ -83,16 +83,16 @@ function addSegment(x, y) {
 	ctx.stroke();
 }
 
+/* TODO: Renombrar, hace otra cosa ahora */
 function fill() {
-	commands.push({type: 'fill', fillStyle: ctx.fillStyle});
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillStyle = ctx.strokeStyle;
+	redraw();
 }
 
 function redraw() {
 	for (command of commands) {
 		switch(command.type) {
 		case 'fill':
-			ctx.fillStyle = command.fillStyle;
 			ctx.fillRect(0, 0, canvas.width, canvas.height);
 			break;
 		case 'stroke':
@@ -109,13 +109,12 @@ function redraw() {
 }
 
 function clearCanvas() {
-	commands = [commands[0]];
+	commands.push({type: 'fill'});
 	redraw();
 }
 
 function setColor(color) {
 	ctx.strokeStyle = color;
-	ctx.fillStyle = color;
 }
 
 function setWidth(i) {
