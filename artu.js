@@ -1,5 +1,8 @@
+/* artu.js - a small canvas drawing library
+ * Authors: Martin J. Del Río, Ignacio E. Losiggio
+ */
+
 /* TODO: Eliminar puntos demasiado cercanos o repetidos */
-/* TODO: Implementar saveToServer() */
 let canvas;
 let ctx;
 let isDrawing;
@@ -136,3 +139,67 @@ document.addEventListener('keydown', function(event) {
 });
 
 document.addEventListener('DOMContentLoaded', startu);
+
+/* El código acá abajo es necesario para doodlest, pero no es parte de la
+ * lógica propia de dibujado. */
+
+let tiempoInicio = new Date();
+let timeoutMax = 60 * 10;
+let segundosrestantes;
+let puedeSubmitear = true;
+
+function saveToServer() {
+	if (segundosrestantes > timeoutMax - (60 * 1.5)) {
+		alert("Hey! You drew a little too fast! Try to spend a little more time on your drawing!");
+		return;
+	}
+
+	if(!puedeSubmitear) return;
+	puedeSubmitear = false;
+
+	window.onbeforeunload = null;
+
+	/* Como las imagenes se guardan internamente en 300x264 creo un canvas
+	 * nuevo para resizear el output */
+	const resizeCanvas = document.createElement("canvas");
+	resizeCanvas.height = 264;
+	resizeCanvas.width = 300;
+
+	const resizeCtx = resizeCanvas.getContext('2d');
+	resizeCtx.drawImage(canvas, 0, 0, 300, 264);
+
+	const dataURL = resizeCanvas.toDataURL();
+	const imagefield = document.getElementById('image');
+	// TODO agregar coso
+	imagefield.value = dataURL;
+	document.getElementById("imageform").submit();
+}
+
+function cuentaRegresiva() {
+	let timeNow = new Date();
+	segundosrestantes = timeoutMax - ((timeNow - tiempoInicio) / 1000);
+	let timeLeftText = document.getElementById('timeleft');
+
+	if(segundosrestantes < timeoutMax / 2)
+		$("#timeleft").addClass('text-warning').removeClass('text-muted');
+	if(segundosrestantes < 60)
+		$("#timeleft").addClass('text-danger').removeClass('text-warning');
+
+	let minutes = Math.floor(segundosrestantes / 60);
+	let seconds = Math.floor(segundosrestantes % 60);
+	let tiempo = minutes + ":" + (seconds < 10 ? "0" + seconds : seconds);
+
+	if(segundosrestantes >= 0) {
+		timeLeftText.innerHTML = "Time left: " + tiempo;
+		document.title= "(" + tiempo + ") Draw! - Doodlest";
+	}
+
+	if(segundosrestantes <= 0)
+		saveToServer();
+}
+
+window.onbeforeunload = function darLastima() {
+	return "Do you really want to leave? You may lose unsaved changes!";
+};
+
+setInterval(cuentaRegresiva, 1000);
