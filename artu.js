@@ -122,10 +122,12 @@ function setWidth(i) {
 	ctx.lineWidth = i;
 }
 
-function undo(){
+function undo() {
+	ctx.save();
 	if(commands.length > 1)
 		commands.pop();
 	redraw();
+	ctx.restore();
 }
 
 document.addEventListener('keydown', function(event) {
