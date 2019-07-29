@@ -109,7 +109,7 @@ function redraw() {
 }
 
 function clearCanvas() {
-	commands = [commands[0]];
+	commands.push({type: 'fill', fillStyle: '#FFCD75'});
 	redraw();
 }
 
